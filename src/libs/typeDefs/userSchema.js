@@ -5,8 +5,7 @@ const userSchema = makeExecutableSchema({
     type Users {
       email: String,
       password: String,
-      username: String,
-      token: String
+      username: String
     }
 
     type Query {

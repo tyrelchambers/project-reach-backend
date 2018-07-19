@@ -1,6 +1,5 @@
 import { graphqlExpress, graphiqlExpress } from 'apollo-server-express';
 import { makeExecutableSchema } from 'graphql-tools';
-import uniqueString from 'unique-string';
 
 const express = require('express');
 const app = express();
@@ -26,19 +25,19 @@ const typeDefs = `
   type Query {
     hello: String,
     users: [User!],
-    user(email: String): User
+    user(email: String): User,
+    login(email: String!, password: String!): String
+
   }
 
   type User {
     email: String,
     password: String,
-    username: String,
-    sessionKey: String
+    username: String
   }
 
   type Mutation {
-    createUser(email: String, password: String, username: String): User
-    loginUser: String
+    createUser(email: String, password: String, username: String): String
   }
 `;
 
@@ -48,36 +47,36 @@ const resolvers = {
     users: (obj, args, ctx) => {
       return User.find();
     },
-    user: (ctx, args) => args
+    user: (ctx, args) => args,
+    login: async (_, {email, password}) => {
+      const user = await User.findOne({email});
+
+      if (!user) throw new Error("User does not exist");
+
+      const validPass = await bcrypt.compare(password, user.password);
+
+      if (!validPass) throw new Error("Email or password are incorrect");
+
+      return jwt.sign({id: user._id, email: user.email}, config.secret, {
+        expiresIn:"1d"
+      });
+    }
   },
 
   Mutation: {
-    async createUser(obj, args, ctx) {
+    createUser: (_, {email, password}) => {
+      const hashPassword = bcrypt.hashSync(password, 8);
+      const user = User.create({
+        email,
+        password: hashPassword
+      });
       
-      const hashPassword = bcrypt.hashSync(args.password, 8);
-      const existingUser = User.where({email: args.email});
-      let token = jwt.sign({id: user._id}, config.secret, {
+      return jwt.sign({id: user._id, email: user.email}, config.secret, {
         expiresIn: 86400
       });
-
-      if (!args.email) return "Need an email";
-      if (!args.password) return "Password needed";
-      
-      // Query for user, create user if null, otherwise return
-      existingUser.findOne((err, user) => {
-        if (err) throw new Error(err);
-        if (user) return console.log("User exists");       
-      });    
-
-      return User.create({
-        email: args.email,
-        password: hashPassword,
-        token
-      });
-    }
+    }  
   }
 }
-
 
 
 const schema = makeExecutableSchema({
