@@ -5,8 +5,8 @@ const projectSchema = mongoose.Schema({
   author: String,
   description: String,
   meta: {
-    likes: Int,
-    dislikes: Int
+    likes: Number,
+    dislikes: Number
   },
   archived: Boolean,
   thumbnail: String,
@@ -17,4 +17,4 @@ const projectSchema = mongoose.Schema({
 
 const Project = mongoose.model("Project", projectSchema);
 
-export default Project;
+module.exports = Project;
