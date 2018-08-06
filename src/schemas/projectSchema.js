@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 
 const projectSchema = mongoose.Schema({
   title: String,
-  author: String,
+  creator: { type: mongoose.Schema.Types.ObjectId, ref: "User"},
   description: String,
   meta: {
     likes: Number,

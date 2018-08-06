@@ -28,7 +28,7 @@ const typeDefs = `
     users: [User!],
     user(email: String): User,
     login(email: String!, password: String!): String,
-    allProjects: [Project]
+    allProjects(user_id: ID): [Project]
   }
 
   type User {
@@ -40,7 +40,7 @@ const typeDefs = `
   type Project {
     title: String,
     description: String,
-    userId: ID,
+    creator: String,
     comments: [Comment],
     imageUrl: String
   }
@@ -52,7 +52,7 @@ const typeDefs = `
 
   type Mutation {
     createUser(email: String, password: String, username: String): String,
-    createProject(title: String!, description: String!): Project
+    createProject(title: String, description: String, creator: String): String
   }
 `;
 
@@ -84,9 +84,11 @@ const resolvers = {
   },
 
   Mutation: {
-    createUser: (_, {email, password}) => {
+    createUser: async (_, {email, password}) => {
       const hashPassword = bcrypt.hashSync(password, 8);
+      const existingUser = await User.findOne({email});
 
+      if (existingUser) throw new Error("User exists");
       if (!email) throw new Error("No email provided");
       if (!password) throw new Error("No password provided");
 
@@ -99,17 +101,19 @@ const resolvers = {
         expiresIn: 86400
       });
     },
-    createProject: async (obj, {title, description, authToken}, ctx) => {
+    createProject: async (obj, {title, description, authToken, creator}, ctx) => {
       const existingProject = await Project.findOne({title});
-      const token = authToken;
+      const existingUser = await User.findOne({email: creator});
 
       if (existingProject) throw new Error("A project with that title already exsits.");
+      if (!existingUser) throw new Error("User not valid");
 
       const project = Project.create({
         title,
-        description
+        description,
+        creator: existingUser._id
       });
-
+      console.log(existingUser._id)
       return project;
     }  
   }
