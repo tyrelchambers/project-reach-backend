@@ -4,14 +4,15 @@ const projectSchema = mongoose.Schema({
   title: String,
   creator: { type: mongoose.Schema.Types.ObjectId, ref: "User"},
   description: String,
+  headline: String,
   meta: {
     likes: Number,
     dislikes: Number
   },
   archived: Boolean,
   thumbnail: String,
-  images: [String]
-  // add comment field
+  images: [String],
+  comments: [{type: mongoose.Schema.Types.ObjectId, ref: "Comment"}]
   
 });
 

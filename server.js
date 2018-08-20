@@ -9,13 +9,14 @@ const bodyParser = require('body-parser');
 const config = require('./src/config');
 const User = require('./src/schemas/userSchema');
 const Project = require('./src/schemas/projectSchema');
+const Comment = require('./src/schemas/commentSchema');
 const bcrypt = require('bcryptjs');
 const port = process.env.PORT || 3001;
 const database = config.database;
 const db = mongoose.connection;
 const helmet = require('helmet');
 const jwt = require('jsonwebtoken');
-
+const util = require('util');
 app.use(cors());
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(bodyParser.json());
@@ -28,7 +29,9 @@ const typeDefs = `
     users: [User!],
     user(email: String): User,
     login(email: String!, password: String!): String,
-    allProjects(user_id: ID): [Project]
+    allProjects: [Project],
+    projects(creator: String): [Project],
+    projectById(project_id: String): Project
   }
 
   type User {
@@ -38,8 +41,10 @@ const typeDefs = `
   }
 
   type Project {
+    _id: ID,
     title: String,
     description: String,
+    headline: String,
     creator: String,
     comments: [Comment],
     imageUrl: String
@@ -52,7 +57,10 @@ const typeDefs = `
 
   type Mutation {
     createUser(email: String, password: String, username: String): String,
-    createProject(title: String, description: String, creator: String): String
+    createProject(title: String, description: String, creator: String, headline: String): String,
+    deleteProject(creator: String, project_id: String): String,
+    updateProject(creator: String, title: String, description: String): String,
+    postComment(comment: String, project_id: String): String
   }
 `;
 
@@ -75,11 +83,24 @@ const resolvers = {
       if (!validPass) throw new Error("Email or password are incorrect");
 
       return jwt.sign({id: user._id, email: user.email}, config.secret, {
-        expiresIn:"1d"
+        expiresIn:"30d"
       });
     },
     allProjects: () => {
       return Project.find();
+    },
+    projects: async (_, {creator}) => {
+      const decoded = jwt.decode(creator, config.secret);
+      const ObjectId = mongoose.Types.ObjectId;
+      const id = ObjectId(decoded.id);
+
+      return Project.find({creator: id});
+    },
+    projectById: async (_, {project_id}) => {
+      const ObjectId = mongoose.Types.ObjectId;
+      const id = ObjectId(project_id);
+      
+      return Project.findOne({_id: id}).populate('comments');
     }
   },
 
@@ -92,16 +113,16 @@ const resolvers = {
       if (!email) throw new Error("No email provided");
       if (!password) throw new Error("No password provided");
 
-      const user = User.create({
+      const user = await User.create({
         email,
         password: hashPassword
       });
       
       return jwt.sign({id: user._id, email: user.email}, config.secret, {
-        expiresIn: 86400
+        expiresIn: "30d"
       });
     },
-    createProject: async (obj, {title, description, authToken, creator}, ctx) => {
+    createProject: async (obj, {title, description, headline, creator}, ctx) => {
       const existingProject = await Project.findOne({title});
       const existingUser = await User.findOne({email: creator});
 
@@ -111,11 +132,50 @@ const resolvers = {
       const project = Project.create({
         title,
         description,
-        creator: existingUser._id
+        creator: existingUser._id,
+        headline
       });
-      console.log(existingUser._id)
       return project;
-    }  
+    },
+    deleteProject: async (_, {creator, project_id}) => {
+      const decoded = jwt.decode(creator, config.secret);
+      const ObjectId = mongoose.Types.ObjectId;
+      const id = ObjectId(decoded.id);
+
+      const project = await Project.findOneAndRemove({creator: id, _id: ObjectId(project_id)});
+
+      return project;
+    },
+    updateProject: async (_, {creator, title, description}) => {
+      const decoded = jwt.decode(creator, config.secret);
+      const ObjectId = mongoose.Types.ObjectId;
+      const id = ObjectId(decoded.id);
+      
+      const project = await Project.findOneAndUpdate({creator: id, title, description});
+
+      return project;
+    },
+    postComment: async (_, {comment, project_id, creator}) => {
+      const ObjectId = mongoose.Types.ObjectId;
+      const projectId = ObjectId(project_id);
+      const userId = ObjectId(creator);
+      const project = await Project.findOne({_id: projectId});
+
+      const newComment = await Comment.create({
+        comment,
+        creator: userId,
+        project: projectId
+      });
+
+      newComment.save((err) => {
+        if (err) return new Error(err);
+
+        project.comments.push(newComment._id);
+        project.save();
+      });
+      
+      return newComment;
+    }
   }
 }
 
