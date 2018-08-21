@@ -28,7 +28,6 @@ const typeDefs = `
     hello: String,
     users: [User!],
     user(email: String): User,
-    login(email: String!, password: String!): String,
     allProjects: [Project],
     projects(creator: String): [Project],
     projectById(project_id: String): Project
@@ -51,7 +50,8 @@ const typeDefs = `
   }
 
   type Comment {
-    userId: ID,
+    creator: ID,
+    project: String,
     comment: String
   }
 
@@ -60,7 +60,8 @@ const typeDefs = `
     createProject(title: String, description: String, creator: String, headline: String): String,
     deleteProject(creator: String, project_id: String): String,
     updateProject(creator: String, title: String, description: String): String,
-    postComment(comment: String, project_id: String): String
+    login(email: String, password: String): String,
+    postComment(comment: String, project_id: String, creator: String): String
   }
 `;
 
@@ -71,21 +72,6 @@ const resolvers = {
       return User.find();
     },
     user: (ctx, args) => args,
-    login: async (_, {email, password}) => {
-      const user = await User.findOne({email});
-      
-      if (!email) throw new Error("No email provided");
-      if (!password) throw new Error("No password provided");
-      if (!user) throw new Error("User does not exist");
-
-      const validPass = await bcrypt.compare(password, user.password);
-
-      if (!validPass) throw new Error("Email or password are incorrect");
-
-      return jwt.sign({id: user._id, email: user.email}, config.secret, {
-        expiresIn:"30d"
-      });
-    },
     allProjects: () => {
       return Project.find();
     },
@@ -156,11 +142,11 @@ const resolvers = {
       return project;
     },
     postComment: async (_, {comment, project_id, creator}) => {
+      const decoded = jwt.decode(creator, config.secret);
       const ObjectId = mongoose.Types.ObjectId;
       const projectId = ObjectId(project_id);
-      const userId = ObjectId(creator);
+      const userId = ObjectId(decoded.id);
       const project = await Project.findOne({_id: projectId});
-
       const newComment = await Comment.create({
         comment,
         creator: userId,
@@ -175,6 +161,19 @@ const resolvers = {
       });
       
       return newComment;
+    },
+    login: async (_, {email, password}) => {
+      const user = await User.findOne({email});
+      if (!email) throw new Error("No email provided");
+      if (!password) throw new Error("No password provided");
+      if (!user) throw new Error("User does not exist");
+
+      const validPass = await bcrypt.compare(password, user.password);
+
+      if (!validPass) throw new Error("Email or password are incorrect");
+      return jwt.sign({id: user._id, email: user.email}, config.secret, {
+        expiresIn:"30d"
+      });
     }
   }
 }
