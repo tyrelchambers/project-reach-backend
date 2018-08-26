@@ -65,7 +65,8 @@ const typeDefs = `
     deleteProject(creator: String, project_id: String): String,
     updateProject(creator: String, title: String, description: String): String,
     login(email: String, password: String): String,
-    postComment(comment: String, project_id: String, creator: String): String
+    postComment(comment: String, project_id: String, creator: String): String,
+    updateAccount(email: String, password: String, username: String, creator: String): String
   }
 `;
 
@@ -186,6 +187,18 @@ const resolvers = {
       return jwt.sign({id: user._id, email: user.email}, config.secret, {
         expiresIn:"30d"
       });
+    },
+    updateAccount: async (_, {email, password, username, creator}) => {
+      const decoded = jwt.decode(creator, config.secret);
+      const ObjectId = mongoose.Types.ObjectId;
+      const id = ObjectId(decoded.id);
+      const user = await User.findOne({_id: id});
+      const validPass = await bcrypt.compare(password, user.password);
+      
+      if (!email) return new Error("No email provided");
+      if (!password) return new Error("No password provided");
+      // if (!validPass) return
+      return User.findOneAndUpdate({_id: id}, {email, username, password});
     }
   }
 }
