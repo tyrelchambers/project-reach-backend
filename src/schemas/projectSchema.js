@@ -12,7 +12,10 @@ const projectSchema = mongoose.Schema({
   archived: Boolean,
   thumbnail: String,
   images: [String],
-  comments: [{type: mongoose.Schema.Types.ObjectId, ref: "Comment"}]
+  comments: [{type: mongoose.Schema.Types.ObjectId, ref: "Comment"}],
+  created_at: {
+    type: Date, default: Date.now()
+  }
   
 });
 

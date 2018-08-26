@@ -30,7 +30,9 @@ const typeDefs = `
     user(email: String): User,
     allProjects: [Project],
     projects(creator: String): [Project],
-    projectById(project_id: String): Project
+    projectById(project_id: String): Project,
+    account(token: String): User
+
   }
 
   type User {
@@ -46,13 +48,15 @@ const typeDefs = `
     headline: String,
     creator: String,
     comments: [Comment],
-    imageUrl: String
+    imageUrl: String,
+    created_at: String
   }
 
   type Comment {
     creator: ID,
     project: String,
-    comment: String
+    comment: String,
+    created_at: String
   }
 
   type Mutation {
@@ -86,7 +90,15 @@ const resolvers = {
       const ObjectId = mongoose.Types.ObjectId;
       const id = ObjectId(project_id);
       
-      return Project.findOne({_id: id}).populate('comments');
+      return Project.findOne({_id: id})
+                    .populate('comments');
+    },
+    account: async (_, {token}) => {
+      const decoded = jwt.decode(token, config.secret);
+      const ObjectId = mongoose.Types.ObjectId;
+      const id = ObjectId(decoded.id);
+
+      return User.findOne({_id: id});
     }
   },
 
@@ -145,7 +157,7 @@ const resolvers = {
       const decoded = jwt.decode(creator, config.secret);
       const ObjectId = mongoose.Types.ObjectId;
       const projectId = ObjectId(project_id);
-      const userId = ObjectId(decoded.id);
+      const userId = decoded.email;
       const project = await Project.findOne({_id: projectId});
       const newComment = await Comment.create({
         comment,
