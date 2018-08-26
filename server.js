@@ -63,7 +63,7 @@ const typeDefs = `
     createUser(email: String, password: String, username: String): String,
     createProject(title: String, description: String, creator: String, headline: String): String,
     deleteProject(creator: String, project_id: String): String,
-    updateProject(creator: String, title: String, description: String): String,
+    updateProject(creator: String, title: String, description: String, headline: String): String,
     login(email: String, password: String): String,
     postComment(comment: String, project_id: String, creator: String): String,
     updateAccount(email: String, password: String, username: String, creator: String): String
@@ -145,12 +145,12 @@ const resolvers = {
 
       return project;
     },
-    updateProject: async (_, {creator, title, description}) => {
+    updateProject: async (_, {creator, title, description, headline}) => {
       const decoded = jwt.decode(creator, config.secret);
       const ObjectId = mongoose.Types.ObjectId;
       const id = ObjectId(decoded.id);
       
-      const project = await Project.findOneAndUpdate({creator: id, title, description});
+      const project = await Project.findOneAndUpdate({creator: id, title, description, headline});
 
       return project;
     },
