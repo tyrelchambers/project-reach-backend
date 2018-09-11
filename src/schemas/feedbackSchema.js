@@ -1,14 +1,17 @@
 import mongoose from 'mongoose';
 
-const commentSchema = mongoose.Schema({
+const feedbackSchema = mongoose.Schema({
   comment: String,
   creator: String,
   created_at: {
     type: Date, default: Date.now()
   },
+  interestRating: String,
+  pros: [String],
+  cons: [String],
   project: { type: mongoose.Schema.Types.ObjectId, ref: "Project" }
 });
 
-const Comment = mongoose.model("Comment", commentSchema);
+const Feedback = mongoose.model("Feedback", feedbackSchema);
 
-module.exports = Comment;
+module.exports = Feedback;

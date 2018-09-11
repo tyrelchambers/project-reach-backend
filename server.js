@@ -9,7 +9,7 @@ const bodyParser = require('body-parser');
 const config = require('./src/config');
 const User = require('./src/schemas/userSchema');
 const Project = require('./src/schemas/projectSchema');
-const Comment = require('./src/schemas/commentSchema');
+const Feedback = require('./src/schemas/feedbackSchema');
 const bcrypt = require('bcryptjs');
 const port = process.env.PORT || 3001;
 const database = config.database;
@@ -47,16 +47,22 @@ const typeDefs = `
     description: String,
     headline: String,
     creator: String,
-    comments: [Comment],
+    feedback: [Feedback],
     imageUrl: String,
-    created_at: String
+    created_at: String,
+    pros: [String],
+    cons: [String],
+    interestRating: String
   }
 
-  type Comment {
+  type Feedback {
     creator: ID,
     project: String,
     comment: String,
-    created_at: String
+    created_at: String,
+    interestRating: String,
+    pros: [String],
+    cons: [String]
   }
 
   type Mutation {
@@ -65,7 +71,7 @@ const typeDefs = `
     deleteProject(creator: String, project_id: String): String,
     updateProject(creator: String, title: String, description: String, headline: String): String,
     login(email: String, password: String): String,
-    postComment(comment: String, project_id: String, creator: String): String,
+    postFeedback(comment: String, project_id: String, creator: String, interestRating: String, pros: [String], cons: [String]): String,
     updateAccount(email: String, password: String, username: String, creator: String): String
   }
 `;
@@ -92,7 +98,7 @@ const resolvers = {
       const id = ObjectId(project_id);
       
       return Project.findOne({_id: id})
-                    .populate('comments');
+                    .populate('feedback');
     },
     account: async (_, {token}) => {
       const decoded = jwt.decode(token, config.secret);
@@ -154,26 +160,29 @@ const resolvers = {
 
       return project;
     },
-    postComment: async (_, {comment, project_id, creator}) => {
+    postFeedback: async (_, {comment, project_id, creator, interestRating, pros, cons}) => {
       const decoded = jwt.decode(creator, config.secret);
       const ObjectId = mongoose.Types.ObjectId;
       const projectId = ObjectId(project_id);
       const userId = decoded.email;
       const project = await Project.findOne({_id: projectId});
-      const newComment = await Comment.create({
+      const newFeedback = await Feedback.create({
         comment,
         creator: userId,
-        project: projectId
+        project: projectId,
+        interestRating,
+        pros: [...pros],
+        cons: [...cons]
       });
 
-      newComment.save((err) => {
+      newFeedback.save((err) => {
         if (err) return new Error(err);
 
-        project.comments.push(newComment._id);
+        project.feedback.push(newFeedback._id);
         project.save();
       });
       
-      return newComment;
+      return newFeedback;
     },
     login: async (_, {email, password}) => {
       const user = await User.findOne({email});
