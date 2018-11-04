@@ -52,7 +52,9 @@ const typeDefs = `
     created_at: String,
     pros: [String],
     cons: [String],
-    interestRating: String
+    interestRating: String,
+    upvote: Int,
+    upvoters: [String]
   }
 
   type Feedback {
@@ -72,7 +74,8 @@ const typeDefs = `
     updateProject(creator: String, title: String, description: String, headline: String): String,
     login(email: String, password: String): String,
     postFeedback(comment: String, project_id: String, creator: String, interestRating: String, pros: [String], cons: [String]): String,
-    updateAccount(email: String, password: String, username: String, creator: String): String
+    updateAccount(email: String, password: String, username: String, creator: String): String,
+    upvoteProject(upvote: Int, project_id: String, upvoters: String): String
   }
 `;
 
@@ -151,12 +154,12 @@ const resolvers = {
 
       return project;
     },
-    updateProject: async (_, {creator, title, description, headline}) => {
+    updateProject: async (_, {creator, title, description, headline, upvoters}) => {
       const decoded = jwt.decode(creator, config.secret);
       const ObjectId = mongoose.Types.ObjectId;
       const id = ObjectId(decoded.id);
-      
-      const project = await Project.findOneAndUpdate({creator: id, title, description, headline});
+      console.log(upvoters);
+      const project = await Project.findOneAndUpdate({creator: id}, {title, description, headline, upvoters});
 
       return project;
     },
@@ -208,6 +211,10 @@ const resolvers = {
       if (!password) return new Error("No password provided");
       // if (!validPass) return
       return User.findOneAndUpdate({_id: id}, {email, username, password});
+    },
+    upvoteProject: async (_, {upvote, project_id, upvoters}) => {
+      const project = await Project.findOneAndUpdate({_id: project_id}, {$inc: {upvote: 1}, $push: {upvoters: upvoters}});
+      return project;
     }
   }
 }
